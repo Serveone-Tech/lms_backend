@@ -16,6 +16,7 @@ import {
   getCreatorById,
   getLecturePlayerData,
   createModule,
+  deleteModule,
 } from "../controllers/courseController.js";
 
 const courseRouter = express.Router();
@@ -64,7 +65,7 @@ courseRouter.delete("/:courseId", isAuth, deleteCourse);
 ===================================================== */
 
 // Create lecture under course
-courseRouter.post("/lecture/:courseId", isAuth, createLecture);
+courseRouter.post("/lecture/:moduleId", isAuth, createLecture);
 
 // Get lectures of a course
 courseRouter.get("/lecture/:courseId", isAuth, getCourseLectures);
@@ -92,5 +93,7 @@ courseRouter.get("/:courseId/lecture-player", isAuth, getLecturePlayerData);
 // create module
 
 courseRouter.post("/:courseId/module", isAuth, createModule);
+
+courseRouter.delete("/module/:moduleId", isAuth, deleteModule);
 
 export default courseRouter;

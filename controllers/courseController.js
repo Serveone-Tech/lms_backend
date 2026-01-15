@@ -12,8 +12,11 @@ export const getLecturePlayerData = async (req, res) => {
     const { courseId } = req.params;
 
     const course = await Course.findById(courseId).populate({
-      path: "lectures",
-      select: "lectureTitle videoUrl isPreviewFree duration",
+      path: "modules",
+      populate: {
+        path: "lectures",
+        select: "title videoUrl isFree duration status",
+      },
     });
 
     if (!course) {
@@ -40,7 +43,11 @@ export const getLecturePlayerData = async (req, res) => {
       });
     }
 
-    const totalLectures = course.lectures.length;
+    const totalLectures = course.modules.reduce(
+      (acc, m) => acc + m.lectures.length,
+      0
+    );
+
     const completedCount = progress.completedLectures.length;
 
     const progressPercent =
@@ -52,15 +59,14 @@ export const getLecturePlayerData = async (req, res) => {
       course: {
         _id: course._id,
         title: course.title,
+        modules: course.modules,
       },
-      lectures: course.lectures,
       hasPurchased,
       completedLectures: progress.completedLectures,
       progressPercent,
       watchedTime: progress.watchedTime,
     });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Lecture player load failed" });
   }
 };
@@ -202,7 +208,6 @@ export const createLecture = async (req, res) => {
   try {
     const { moduleId } = req.params;
     const { lectureTitle, isFree = false } = req.body;
-
     if (!lectureTitle) {
       return res.status(400).json({ message: "Lecture title required" });
     }
@@ -258,50 +263,50 @@ export const getCourseLectures = async (req, res) => {
 
 export const updateLecture = async (req, res) => {
   try {
-    console.log("req.body", req.body);
     const { lectureId } = req.params;
-    const { isPreviewFree, lectureTitle } = req.body;
+    const { title, isFree } = req.body;
+
     const lecture = await Lecture.findById(lectureId);
     if (!lecture) {
       return res.status(404).json({ message: "Lecture not found" });
     }
-    let videoUrl;
+
+    // video upload
     if (req.file) {
-      videoUrl = await uploadOnCloudinary(req.file.path);
+      const videoUrl = await uploadOnCloudinary(req.file.path);
       lecture.videoUrl = videoUrl;
+      lecture.status = "published";
     }
-    if (lectureTitle) {
-      lecture.lectureTitle = lectureTitle;
-    }
-    lecture.isPreviewFree = isPreviewFree;
+
+    if (title) lecture.title = title;
+    if (typeof isFree !== "undefined") lecture.isFree = isFree;
 
     await lecture.save();
-    return res.status(200).json(lecture);
+    res.status(200).json(lecture);
   } catch (error) {
-    return res
-      .status(500)
-      .json({ message: `Failed to edit Lectures ${error}` });
+    res.status(500).json({ message: "Failed to update lecture" });
   }
 };
 
 export const deleteLecture = async (req, res) => {
   try {
     const { lectureId } = req.params;
-    const lecture = await Lecture.findByIdAndDelete(lectureId);
+
+    const lecture = await Lecture.findById(lectureId);
     if (!lecture) {
       return res.status(404).json({ message: "Lecture not found" });
     }
-    //remove the lecture from associated course
 
-    await Course.updateOne(
-      { lectures: lectureId },
-      { $pull: { lectures: lectureId } }
-    );
-    return res.status(200).json({ message: "Lecture Remove Successfully" });
+    // remove from module
+    await Module.findByIdAndUpdate(lecture.module, {
+      $pull: { lectures: lecture._id },
+    });
+
+    await lecture.deleteOne();
+
+    res.status(200).json({ message: "Lecture deleted successfully" });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ message: `Failed to remove Lectures ${error}` });
+    res.status(500).json({ message: "Failed to delete lecture" });
   }
 };
 
@@ -354,4 +359,19 @@ export const createModule = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: "Failed to create module" });
   }
+};
+
+export const deleteModule = async (req, res) => {
+  const module = await Module.findById(req.params.moduleId);
+  if (!module) return res.status(404).json({ message: "Module not found" });
+
+  await Lecture.deleteMany({ module: module._id });
+
+  await Course.findByIdAndUpdate(module.course, {
+    $pull: { modules: module._id },
+  });
+
+  await module.deleteOne();
+
+  res.json({ success: true });
 };
