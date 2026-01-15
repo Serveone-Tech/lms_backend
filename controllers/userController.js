@@ -1,0 +1,126 @@
+import uploadOnCloudinary from "../configs/cloudinary.js";
+import User from "../models/userModel.js";
+import Order from "../models/orderModel.js";
+
+export const getCurrentUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId)
+      .select("-password")
+      .populate("enrolledCourses");
+    if (!user) {
+      return res.status(400).json({ message: "user does not found" });
+    }
+    return res.status(200).json(user);
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({ message: "get current user error" });
+  }
+};
+
+export const UpdateProfile = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { userName, description } = req.body;
+    let photoUrl;
+    if (req.file) {
+      photoUrl = await uploadOnCloudinary(req.file.path);
+    }
+    const user = await User.findByIdAndUpdate(userId, {
+      userName,
+      description,
+      photoUrl,
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    await user.save();
+    return res.status(200).json(user);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: `Update Profile Error  ${error}` });
+  }
+};
+
+// ADMIN: get all users
+export const getAllUsers = async (req, res) => {
+  try {
+    // OPTIONAL: role check (recommended)
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const users = await User.find().select("-password");
+    return res.status(200).json(users);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch users" });
+  }
+};
+
+export const getAdminUsers = async (req, res) => {
+  try {
+    const { search, courseId, status, fromDate, toDate } = req.query;
+
+    // 1️⃣ Fetch users
+    let users = await User.find().select("name email createdAt");
+
+    // Search filter (name/email)
+    if (search) {
+      const keyword = search.toLowerCase();
+      users = users.filter(
+        (u) =>
+          u.name.toLowerCase().includes(keyword) ||
+          u.email.toLowerCase().includes(keyword)
+      );
+    }
+
+    // 2️⃣ Fetch paid orders
+    const orderQuery = { isPaid: true };
+
+    if (courseId) orderQuery.course = courseId;
+
+    if (fromDate || toDate) {
+      orderQuery.createdAt = {};
+      if (fromDate) orderQuery.createdAt.$gte = new Date(fromDate);
+      if (toDate) orderQuery.createdAt.$lte = new Date(toDate);
+    }
+
+    const orders = await Order.find(orderQuery)
+      .populate("course", "title")
+      .populate("student", "name email");
+
+    // 3️⃣ Map orders by user
+    const orderMap = new Map();
+    orders.forEach((order) => {
+      orderMap.set(order.student._id.toString(), order);
+    });
+
+    // 4️⃣ Merge users + orders
+    let result = users.map((user) => {
+      const order = orderMap.get(user._id.toString());
+
+      return {
+        userId: user._id,
+        name: user.name,
+        email: user.email,
+        joinedAt: user.createdAt,
+        hasPurchased: !!order,
+        courseName: order?.course?.title || null,
+        amountPaid: order?.amount || null,
+        purchasedAt: order?.createdAt || null,
+      };
+    });
+
+    // Status filter
+    if (status === "paid") {
+      result = result.filter((u) => u.hasPurchased);
+    }
+    if (status === "unpaid") {
+      result = result.filter((u) => !u.hasPurchased);
+    }
+
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
