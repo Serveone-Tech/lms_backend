@@ -15,7 +15,7 @@ export const getLecturePlayerData = async (req, res) => {
       path: "modules",
       populate: {
         path: "lectures",
-        select: "title videoUrl isFree duration status",
+        select: "title videoUrl isFree duration",
       },
     });
 
@@ -31,42 +31,32 @@ export const getLecturePlayerData = async (req, res) => {
 
     const hasPurchased = !!order;
 
-    let progress = await CourseProgress.findOne({
-      user: userId,
-      course: courseId,
-    });
+    const progress =
+      (await CourseProgress.findOne({ user: userId, course: courseId })) ||
+      (await CourseProgress.create({ user: userId, course: courseId }));
 
-    if (!progress) {
-      progress = await CourseProgress.create({
-        user: userId,
-        course: courseId,
-      });
-    }
-
-    const totalLectures = course.modules.reduce(
-      (acc, m) => acc + m.lectures.length,
-      0
-    );
-
-    const completedCount = progress.completedLectures.length;
+    const allLectures = course.modules.flatMap((m) => m.lectures);
 
     const progressPercent =
-      totalLectures === 0
+      allLectures.length === 0
         ? 0
-        : Math.round((completedCount / totalLectures) * 100);
+        : Math.round(
+            (progress.completedLectures.length / allLectures.length) * 100
+          );
 
-    res.status(200).json({
+    res.json({
       course: {
         _id: course._id,
         title: course.title,
-        modules: course.modules,
       },
+      modules: course.modules,
       hasPurchased,
       completedLectures: progress.completedLectures,
       progressPercent,
       watchedTime: progress.watchedTime,
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Lecture player load failed" });
   }
 };
@@ -93,18 +83,18 @@ export const createCourse = async (req, res) => {
 
 export const getPublishedCourses = async (req, res) => {
   try {
-    const courses = await Course.find({ isPublished: true }).populate(
-      "lectures reviews"
-    );
-    if (!courses) {
-      return res.status(404).json({ message: "Course not found" });
-    }
+    const courses = await Course.find({ isPublished: true }).populate({
+      path: "modules",
+      populate: {
+        path: "lectures",
+        select: "title videoUrl isFree duration",
+      },
+    });
 
     return res.status(200).json(courses);
   } catch (error) {
-    return res
-      .status(500)
-      .json({ message: `Failed to get All  courses ${error}` });
+    console.error(error);
+    return res.status(500).json({ message: "Failed to get published courses" });
   }
 };
 
@@ -362,16 +352,25 @@ export const createModule = async (req, res) => {
 };
 
 export const deleteModule = async (req, res) => {
-  const module = await Module.findById(req.params.moduleId);
-  if (!module) return res.status(404).json({ message: "Module not found" });
+  try {
+    const { moduleId } = req.params;
 
-  await Lecture.deleteMany({ module: module._id });
+    const module = await Module.findById(moduleId);
+    if (!module) {
+      return res.status(404).json({ message: "Module not found" });
+    }
 
-  await Course.findByIdAndUpdate(module.course, {
-    $pull: { modules: module._id },
-  });
+    await Lecture.deleteMany({ module: module._id });
 
-  await module.deleteOne();
+    await Course.findByIdAndUpdate(module.course, {
+      $pull: { modules: module._id },
+    });
 
-  res.json({ success: true });
+    await module.deleteOne();
+
+    return res.status(200).json({ message: "Module deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Failed to delete module" });
+  }
 };

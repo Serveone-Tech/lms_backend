@@ -96,4 +96,29 @@ courseRouter.post("/:courseId/module", isAuth, createModule);
 
 courseRouter.delete("/module/:moduleId", isAuth, deleteModule);
 
+courseRouter.put("/module/:moduleId", isAuth, async (req, res) => {
+  try {
+    const { title } = req.body;
+    const { moduleId } = req.params;
+
+    if (!title) {
+      return res.status(400).json({ message: "Module title required" });
+    }
+
+    const module = await Module.findByIdAndUpdate(
+      moduleId,
+      { title },
+      { new: true }
+    );
+
+    if (!module) {
+      return res.status(404).json({ message: "Module not found" });
+    }
+
+    res.json(module);
+  } catch (e) {
+    res.status(500).json({ message: "Failed to update module" });
+  }
+});
+
 export default courseRouter;
