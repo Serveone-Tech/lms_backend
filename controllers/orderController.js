@@ -11,6 +11,18 @@ const razorpayInstance = new razorpay({
 
 export const createOrder = async (req, res) => {
   try {
+    const existing = await Order.findOne({
+      student: req.userId,
+      course: courseId,
+      isPaid: true,
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        message: "Course already purchased",
+      });
+    }
+
     const { courseId } = req.body;
     const userId = req.userId;
 
@@ -53,44 +65,61 @@ export const verifyPayment = async (req, res) => {
       courseId,
     } = req.body;
 
-    const userId = req.userId; // ✅ FROM JWT
+    const userId = req.userId;
 
-    // 1️⃣ Verify payment from Razorpay
-    const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
+    /* 1️⃣ VERIFY SIGNATURE */
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
 
-    if (orderInfo.status !== "paid") {
-      return res.status(400).json({ message: "Payment not verified" });
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_SECRET)
+      .update(body.toString())
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({ message: "Invalid payment signature" });
     }
 
-    // 2️⃣ Find order in DB
-    const order = await Order.findOne({ razorpay_order_id });
+    /* 2️⃣ FIND ORDER */
+    const order = await Order.findOne({
+      razorpay_order_id,
+      student: userId,
+      course: courseId,
+    });
+
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // 3️⃣ Update order
+    if (order.isPaid) {
+      return res.status(200).json({ message: "Already paid" });
+    }
+
+    /* 3️⃣ MARK ORDER PAID */
     order.razorpay_payment_id = razorpay_payment_id;
     order.razorpay_signature = razorpay_signature;
     order.isPaid = true;
     order.paidAt = new Date();
     await order.save();
 
-    // 4️⃣ Enroll user
-    const user = await User.findById(userId);
-    if (!user.enrolledCourses.includes(courseId)) {
-      user.enrolledCourses.push(courseId);
-      await user.save();
-    }
+    /* 4️⃣ ENROLL USER */
+    await User.findByIdAndUpdate(userId, {
+      $addToSet: { enrolledCourses: courseId },
+    });
 
-    // 5️⃣ Update course
-    const course = await Course.findById(courseId);
-    if (!course.enrolledStudents.includes(userId)) {
-      course.enrolledStudents.push(userId);
-      await course.save();
-    }
+    await Course.findByIdAndUpdate(courseId, {
+      $addToSet: { enrolledStudents: userId },
+    });
+
+    /* 5️⃣ CREATE COURSE PROGRESS (IMPORTANT) */
+    await CourseProgress.findOneAndUpdate(
+      { user: userId, course: courseId },
+      { user: userId, course: courseId },
+      { upsert: true, new: true }
+    );
 
     return res.status(200).json({
-      message: "Payment verified and enrollment successful",
+      success: true,
+      message: "Payment verified & course unlocked",
     });
   } catch (error) {
     console.error(error);

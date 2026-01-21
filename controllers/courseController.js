@@ -35,13 +35,27 @@ export const getLecturePlayerData = async (req, res) => {
       (await CourseProgress.findOne({ user: userId, course: courseId })) ||
       (await CourseProgress.create({ user: userId, course: courseId }));
 
-    const allLectures = course.modules.flatMap((m) => m.lectures);
+    /* 🔥 IMPORTANT PART – LOCK LOGIC */
+    const modules = course.modules.map((module) => ({
+      _id: module._id,
+      title: module.title,
+      lectures: module.lectures.map((lec) => ({
+        _id: lec._id,
+        title: lec.title,
+        videoUrl: lec.videoUrl,
+        isFree: lec.isFree,
+        duration: lec.duration,
+        locked: !hasPurchased && !lec.isFree, // ✅ यही logic चाहिए था
+      })),
+    }));
+
+    const allLectures = modules.flatMap((m) => m.lectures);
 
     const progressPercent =
       allLectures.length === 0
         ? 0
         : Math.round(
-            (progress.completedLectures.length / allLectures.length) * 100
+            (progress.completedLectures.length / allLectures.length) * 100,
           );
 
     res.json({
@@ -49,7 +63,7 @@ export const getLecturePlayerData = async (req, res) => {
         _id: course._id,
         title: course.title,
       },
-      modules: course.modules,
+      modules, // ✅ transformed modules
       hasPurchased,
       completedLectures: progress.completedLectures,
       progressPercent,
@@ -101,7 +115,7 @@ export const getPublishedCourses = async (req, res) => {
 export const getCreatorCourses = async (req, res) => {
   try {
     const courses = await Course.find({ creator: req.userId }).select(
-      "title category price thumbnail isPublished createdAt"
+      "title category price thumbnail isPublished createdAt",
     );
 
     return res.json(courses);
@@ -373,4 +387,52 @@ export const deleteModule = async (req, res) => {
     console.error(error);
     return res.status(500).json({ message: "Failed to delete module" });
   }
+};
+
+export const markLectureCompleted = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { lectureId } = req.params;
+
+    const lecture = await Lecture.findById(lectureId);
+    if (!lecture) {
+      return res.status(404).json({ message: "Lecture not found" });
+    }
+
+    let progress = await CourseProgress.findOne({
+      user: userId,
+      course: lecture.course,
+    });
+
+    if (!progress) {
+      progress = await CourseProgress.create({
+        user: userId,
+        course: lecture.course,
+      });
+    }
+
+    if (!progress.completedLectures.includes(lectureId)) {
+      progress.completedLectures.push(lectureId);
+      await progress.save();
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to mark lecture completed" });
+  }
+};
+
+export const updateLastWatchedLecture = async (req, res) => {
+  const userId = req.userId;
+  const { lectureId } = req.params;
+
+  const lecture = await Lecture.findById(lectureId);
+
+  await CourseProgress.findOneAndUpdate(
+    { user: userId, course: lecture.course },
+    { lastLecture: lectureId },
+    { upsert: true },
+  );
+
+  res.json({ success: true });
 };
