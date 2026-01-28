@@ -1,5 +1,4 @@
 import express from "express";
-import jwt from "jsonwebtoken";
 import {
   googleSignup,
   login,
@@ -9,26 +8,35 @@ import {
   signUp,
   verifyOtp,
 } from "../controllers/authController.js";
+import { genToken } from "../configs/token.js";
+import jwt from "jsonwebtoken";
 
 const authRouter = express.Router();
 
-authRouter.post("/signup", signUp);
-
-authRouter.post("/sign-in", login);
-
 authRouter.post("/issue-token", (req, res) => {
-  const jwtToken = jwt.sign({ userId: req.userId }, process.env.JWT_SECRET, {
+  const { userId } = req.body; // 🔥 frontend से आएगा
+
+  if (!userId) {
+    return res.status(400).json({ message: "userId required" });
+  }
+
+  const backendToken = jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
 
-  res.cookie("token", jwtToken, {
+  res.cookie("token", backendToken, {
     httpOnly: true,
     sameSite: "lax",
     secure: false,
+    path: "/",
   });
 
   res.json({ success: true });
 });
+
+authRouter.post("/signup", signUp);
+
+authRouter.post("/sign-in", login);
 
 authRouter.get("/logout", logOut);
 authRouter.post("/googlesignup", googleSignup);

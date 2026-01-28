@@ -77,6 +77,8 @@ export const getLecturePlayerData = async (req, res) => {
 
 export const createCourse = async (req, res) => {
   try {
+    console.log("Creating course with data:", req.body);
+    console.log("Creating course userId", req.userId);
     const { title, category, shortDescription, price, thumbnail } = req.body;
 
     const course = await Course.create({

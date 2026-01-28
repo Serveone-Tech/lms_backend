@@ -50,11 +50,13 @@ export const login = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "user does not exist" });
     }
+    console.log("user", user);
     let isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: "incorrect Password" });
     }
     let token = await genToken(user._id);
+    console.log("Generated token:", token);
     res.cookie("token", token, {
       httpOnly: true,
       secure: false,
@@ -113,9 +115,9 @@ export const sendOtp = async (req, res) => {
     }
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
-    (user.resetOtp = otp),
+    ((user.resetOtp = otp),
       (user.otpExpires = Date.now() + 5 * 60 * 1000),
-      (user.isOtpVerifed = false);
+      (user.isOtpVerifed = false));
 
     await user.save();
     await sendMail(email, otp);
