@@ -10,6 +10,7 @@ import {
 } from "../controllers/authController.js";
 import { genToken } from "../configs/token.js";
 import jwt from "jsonwebtoken";
+import upload from "../middlewares/multer.js";
 
 const authRouter = express.Router();
 
@@ -34,7 +35,7 @@ authRouter.post("/issue-token", (req, res) => {
   res.json({ success: true });
 });
 
-authRouter.post("/signup", signUp);
+authRouter.post("/signup", upload.single("photo"), signUp);
 
 authRouter.post("/sign-in", login);
 

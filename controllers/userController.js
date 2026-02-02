@@ -62,15 +62,15 @@ export const getAdminUsers = async (req, res) => {
     const { search, courseId, status, fromDate, toDate } = req.query;
 
     // 1️⃣ Fetch users
-    let users = await User.find().select("name email createdAt");
+    let users = await User.find().select("userName email createdAt");
 
-    // Search filter (name/email)
+    // Search filter (userName/email)
     if (search) {
       const keyword = search.toLowerCase();
       users = users.filter(
         (u) =>
-          u.name.toLowerCase().includes(keyword) ||
-          u.email.toLowerCase().includes(keyword)
+          u.userName.toLowerCase().includes(keyword) ||
+          u.email.toLowerCase().includes(keyword),
       );
     }
 
@@ -87,7 +87,7 @@ export const getAdminUsers = async (req, res) => {
 
     const orders = await Order.find(orderQuery)
       .populate("course", "title")
-      .populate("student", "name email");
+      .populate("student", "userName email");
 
     // 3️⃣ Map orders by user
     const orderMap = new Map();
@@ -101,7 +101,7 @@ export const getAdminUsers = async (req, res) => {
 
       return {
         userId: user._id,
-        name: user.name,
+        userName: user.userName,
         email: user.email,
         joinedAt: user.createdAt,
         hasPurchased: !!order,

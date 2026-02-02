@@ -8,38 +8,42 @@ import sendMail from "../configs/Mail.js";
 
 export const signUp = async (req, res) => {
   try {
-    let { userName, email, password, role } = req.body;
-    let existUser = await User.findOne({ email });
+    const { userName, email, password, role } = req.body;
+
+    const existUser = await User.findOne({ email });
     if (existUser) {
       return res.status(400).json({ message: "email already exist" });
     }
+
     if (!validator.isEmail(email)) {
       return res.status(400).json({ message: "Please enter valid Email" });
     }
-    if (password.length < 8) {
-      return res
-        .status(400)
-        .json({ message: "Please enter a Strong Password" });
-    }
 
-    let hashPassword = await bcrypt.hash(password, 10);
-    let user = await User.create({
+    const hashPassword = await bcrypt.hash(password, 10);
+
+    const photoUrl = req.file ? `/uploads/users/${req.file.filename}` : "";
+
+    const user = await User.create({
       userName,
       email,
       password: hashPassword,
       role,
+      photoUrl,
     });
-    let token = await genToken(user._id);
+
+    const token = await genToken(user._id);
+
     res.cookie("token", token, {
       httpOnly: true,
       secure: false,
       sameSite: "Strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
+
     return res.status(201).json(user);
   } catch (error) {
-    console.log("signUp error");
-    return res.status(500).json({ message: `signUp Error ${error}` });
+    console.log("signUp error", error);
+    return res.status(500).json({ message: "Signup failed" });
   }
 };
 

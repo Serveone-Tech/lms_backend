@@ -19,6 +19,7 @@ import {
   deleteModule,
   markLectureCompleted,
   updateLastWatchedLecture,
+  getMyEnrolledCourses,
 } from "../controllers/courseController.js";
 
 const courseRouter = express.Router();
@@ -105,6 +106,8 @@ courseRouter.post(
   isAuth,
   updateLastWatchedLecture,
 );
+
+courseRouter.get("/user/my-enrolled", isAuth, getMyEnrolledCourses);
 
 courseRouter.put("/module/:moduleId", isAuth, async (req, res) => {
   try {

@@ -438,3 +438,63 @@ export const updateLastWatchedLecture = async (req, res) => {
 
   res.json({ success: true });
 };
+
+export const getMyEnrolledCourses = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    /* 1️⃣ USER */
+    const user = await User.findById(userId).select("enrolledCourses");
+    console.log("user448", user);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    /* 2️⃣ COURSES */
+    const courses = await Course.find({
+      _id: { $in: user.enrolledCourses },
+    })
+      .select("title category modules")
+      .populate({
+        path: "modules",
+        select: "lectures",
+      });
+
+    /* 3️⃣ COURSE PROGRESS */
+    const progressDocs = await CourseProgress.find({
+      user: userId,
+    });
+
+    const progressMap = {};
+    progressDocs.forEach((p) => {
+      progressMap[p.course.toString()] = p.completedLectures.length;
+    });
+
+    /* 4️⃣ BUILD RESPONSE */
+    const response = courses.map((course) => {
+      const totalLectures = course.modules.reduce(
+        (sum, mod) => sum + mod.lectures.length,
+        0,
+      );
+
+      const completed = progressMap[course._id.toString()] || 0;
+
+      const progress =
+        totalLectures === 0 ? 0 : Math.round((completed / totalLectures) * 100);
+
+      return {
+        _id: course._id,
+        title: course.title,
+        category: course.category,
+        progress,
+      };
+    });
+
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("getMyEnrolledCourses error:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch enrolled courses" });
+  }
+};

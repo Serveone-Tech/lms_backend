@@ -1,8 +1,10 @@
 import Course from "../models/courseModel.js";
 import razorpay from "razorpay";
+import crypto from "crypto";
 import User from "../models/userModel.js";
 import dotenv from "dotenv";
 import Order from "../models/orderModel.js";
+import courseProgressModel from "../models/courseProgressModel.js";
 dotenv.config();
 const razorpayInstance = new razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -11,8 +13,10 @@ const razorpayInstance = new razorpay({
 
 export const createOrder = async (req, res) => {
   try {
+    const { courseId } = req.body;
+    const userId = req.userId;
     const existing = await Order.findOne({
-      student: req.userId,
+      student: userId,
       course: courseId,
       isPaid: true,
     });
@@ -23,9 +27,6 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    const { courseId } = req.body;
-    const userId = req.userId;
-
     const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
@@ -34,7 +35,7 @@ export const createOrder = async (req, res) => {
     const options = {
       amount: course.price * 100,
       currency: "INR",
-      receipt: `${courseId}_${userId}`,
+      receipt: `ord_${Date.now()}`,
     };
 
     const razorpayOrder = await razorpayInstance.orders.create(options);
@@ -68,11 +69,11 @@ export const verifyPayment = async (req, res) => {
     const userId = req.userId;
 
     /* 1️⃣ VERIFY SIGNATURE */
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
 
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_SECRET)
-      .update(body.toString())
+      .update(body)
       .digest("hex");
 
     if (expectedSignature !== razorpay_signature) {
@@ -111,10 +112,10 @@ export const verifyPayment = async (req, res) => {
     });
 
     /* 5️⃣ CREATE COURSE PROGRESS (IMPORTANT) */
-    await CourseProgress.findOneAndUpdate(
+    await courseProgressModel.findOneAndUpdate(
       { user: userId, course: courseId },
       { user: userId, course: courseId },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
 
     return res.status(200).json({
