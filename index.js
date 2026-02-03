@@ -12,19 +12,29 @@ import reviewRouter from "./routes/reviewRoute.js";
 import adminUserRoute from "./routes/admin/adminUserRoute.js";
 import adminOrderRoute from "./routes/admin/adminOrderRoute.js";
 import progressRouter from "./routes/progressRoute.js";
+
 dotenv.config();
 
-let port = process.env.PORT;
-let app = express();
+const app = express();
+
+/* ================= MIDDLEWARES ================= */
 app.use(express.json());
 app.use(cookieParser());
+
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: [
+      "http://localhost:3000", // local frontend
+      process.env.FRONTEND_URL, // production frontend
+    ],
     credentials: true,
   }),
 );
+
+/* ================= STATIC FILES ================= */
 app.use("/uploads", express.static("public/uploads"));
+
+/* ================= ROUTES ================= */
 app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/course", courseRouter);
@@ -35,11 +45,15 @@ app.use("/api/admin", adminUserRoute);
 app.use("/api/admin", adminOrderRoute);
 app.use("/api/progress", progressRouter);
 
+/* ================= HEALTH CHECK ================= */
 app.get("/", (req, res) => {
   res.send("Hello From Server");
 });
 
-app.listen(port, () => {
-  console.log("Server Started");
-  connectDb();
+/* ================= START SERVER ================= */
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, "0.0.0.0", async () => {
+  console.log(`Server started on port ${PORT}`);
+  await connectDb();
 });
