@@ -17,6 +17,9 @@ import {
   getLecturePlayerData,
   createModule,
   deleteModule,
+  markLectureCompleted,
+  updateLastWatchedLecture,
+  getMyEnrolledCourses,
 } from "../controllers/courseController.js";
 
 const courseRouter = express.Router();
@@ -31,13 +34,13 @@ courseRouter.post(
   isAuth,
   (req, res, next) => {
     const isMultipart = req.headers["content-type"]?.includes(
-      "multipart/form-data"
+      "multipart/form-data",
     );
 
     if (!isMultipart) return next();
     upload.single("thumbnail")(req, res, next);
   },
-  createCourse
+  createCourse,
 );
 
 // Get all published courses (USER)
@@ -54,7 +57,7 @@ courseRouter.put(
   "/:courseId",
   isAuth,
   upload.single("thumbnail"),
-  updateCourse
+  updateCourse,
 );
 
 // Delete course (ADMIN)
@@ -75,7 +78,7 @@ courseRouter.put(
   "/lecture/:lectureId",
   isAuth,
   upload.single("video"),
-  updateLecture
+  updateLecture,
 );
 
 // Delete lecture
@@ -96,6 +99,16 @@ courseRouter.post("/:courseId/module", isAuth, createModule);
 
 courseRouter.delete("/module/:moduleId", isAuth, deleteModule);
 
+courseRouter.post("/lecture/:lectureId/complete", isAuth, markLectureCompleted);
+
+courseRouter.post(
+  "/lecture/:lectureId/watch",
+  isAuth,
+  updateLastWatchedLecture,
+);
+
+courseRouter.get("/user/my-enrolled", isAuth, getMyEnrolledCourses);
+
 courseRouter.put("/module/:moduleId", isAuth, async (req, res) => {
   try {
     const { title } = req.body;
@@ -108,7 +121,7 @@ courseRouter.put("/module/:moduleId", isAuth, async (req, res) => {
     const module = await Module.findByIdAndUpdate(
       moduleId,
       { title },
-      { new: true }
+      { new: true },
     );
 
     if (!module) {

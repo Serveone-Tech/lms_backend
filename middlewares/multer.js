@@ -1,14 +1,25 @@
 import multer from "multer";
+import path from "path";
 
-let storage = multer.diskStorage({
-    destination:(req,file,cb)=>{
-        cb(null,"./public")
-    },
-    filename:(req,file,cb)=>{
-        cb(null,file.originalname)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "./public/uploads/users");
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueName + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  fileFilter(req, file, cb) {
+    if (!file.mimetype.startsWith("image/")) {
+      cb(new Error("Only images allowed"));
     }
-})
+    cb(null, true);
+  },
+});
 
-const upload = multer({storage})
-
-export default upload
+export default upload;

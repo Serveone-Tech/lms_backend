@@ -35,13 +35,27 @@ export const getLecturePlayerData = async (req, res) => {
       (await CourseProgress.findOne({ user: userId, course: courseId })) ||
       (await CourseProgress.create({ user: userId, course: courseId }));
 
-    const allLectures = course.modules.flatMap((m) => m.lectures);
+    /* 🔥 IMPORTANT PART – LOCK LOGIC */
+    const modules = course.modules.map((module) => ({
+      _id: module._id,
+      title: module.title,
+      lectures: module.lectures.map((lec) => ({
+        _id: lec._id,
+        title: lec.title,
+        videoUrl: lec.videoUrl,
+        isFree: lec.isFree,
+        duration: lec.duration,
+        locked: !hasPurchased && !lec.isFree, // ✅ यही logic चाहिए था
+      })),
+    }));
+
+    const allLectures = modules.flatMap((m) => m.lectures);
 
     const progressPercent =
       allLectures.length === 0
         ? 0
         : Math.round(
-            (progress.completedLectures.length / allLectures.length) * 100
+            (progress.completedLectures.length / allLectures.length) * 100,
           );
 
     res.json({
@@ -49,7 +63,7 @@ export const getLecturePlayerData = async (req, res) => {
         _id: course._id,
         title: course.title,
       },
-      modules: course.modules,
+      modules, // ✅ transformed modules
       hasPurchased,
       completedLectures: progress.completedLectures,
       progressPercent,
@@ -63,6 +77,8 @@ export const getLecturePlayerData = async (req, res) => {
 
 export const createCourse = async (req, res) => {
   try {
+    console.log("Creating course with data:", req.body);
+    console.log("Creating course userId", req.userId);
     const { title, category, shortDescription, price, thumbnail } = req.body;
 
     const course = await Course.create({
@@ -101,7 +117,7 @@ export const getPublishedCourses = async (req, res) => {
 export const getCreatorCourses = async (req, res) => {
   try {
     const courses = await Course.find({ creator: req.userId }).select(
-      "title category price thumbnail isPublished createdAt"
+      "title category price thumbnail isPublished createdAt",
     );
 
     return res.json(courses);
@@ -372,5 +388,113 @@ export const deleteModule = async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Failed to delete module" });
+  }
+};
+
+export const markLectureCompleted = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { lectureId } = req.params;
+
+    const lecture = await Lecture.findById(lectureId);
+    if (!lecture) {
+      return res.status(404).json({ message: "Lecture not found" });
+    }
+
+    let progress = await CourseProgress.findOne({
+      user: userId,
+      course: lecture.course,
+    });
+
+    if (!progress) {
+      progress = await CourseProgress.create({
+        user: userId,
+        course: lecture.course,
+      });
+    }
+
+    if (!progress.completedLectures.includes(lectureId)) {
+      progress.completedLectures.push(lectureId);
+      await progress.save();
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to mark lecture completed" });
+  }
+};
+
+export const updateLastWatchedLecture = async (req, res) => {
+  const userId = req.userId;
+  const { lectureId } = req.params;
+
+  const lecture = await Lecture.findById(lectureId);
+
+  await CourseProgress.findOneAndUpdate(
+    { user: userId, course: lecture.course },
+    { lastLecture: lectureId },
+    { upsert: true },
+  );
+
+  res.json({ success: true });
+};
+
+export const getMyEnrolledCourses = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    /* 1️⃣ USER */
+    const user = await User.findById(userId).select("enrolledCourses");
+    console.log("user448", user);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    /* 2️⃣ COURSES */
+    const courses = await Course.find({
+      _id: { $in: user.enrolledCourses },
+    })
+      .select("title category modules")
+      .populate({
+        path: "modules",
+        select: "lectures",
+      });
+
+    /* 3️⃣ COURSE PROGRESS */
+    const progressDocs = await CourseProgress.find({
+      user: userId,
+    });
+
+    const progressMap = {};
+    progressDocs.forEach((p) => {
+      progressMap[p.course.toString()] = p.completedLectures.length;
+    });
+
+    /* 4️⃣ BUILD RESPONSE */
+    const response = courses.map((course) => {
+      const totalLectures = course.modules.reduce(
+        (sum, mod) => sum + mod.lectures.length,
+        0,
+      );
+
+      const completed = progressMap[course._id.toString()] || 0;
+
+      const progress =
+        totalLectures === 0 ? 0 : Math.round((completed / totalLectures) * 100);
+
+      return {
+        _id: course._id,
+        title: course.title,
+        category: course.category,
+        progress,
+      };
+    });
+
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("getMyEnrolledCourses error:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch enrolled courses" });
   }
 };

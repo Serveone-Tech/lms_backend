@@ -3,7 +3,7 @@ import Order from "../../models/orderModel.js";
 export const getAllOrdersForAdmin = async (req, res) => {
   try {
     const orders = await Order.find()
-      .populate("student", "name email")
+      .populate("student", "userName email")
       .populate("course", "title")
       .sort({ createdAt: -1 });
 
