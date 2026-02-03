@@ -7,10 +7,18 @@ export const getCurrentUser = async (req, res) => {
     const user = await User.findById(req.userId)
       .select("-password")
       .populate("enrolledCourses");
+
     if (!user) {
-      return res.status(400).json({ message: "user does not found" });
+      return res.status(400).json({ message: "User not found" });
     }
-    return res.status(200).json(user);
+
+    const isProfileComplete =
+      !!user.userName && !!user.description && !!user.photoUrl;
+
+    return res.status(200).json({
+      user,
+      isProfileComplete,
+    });
   } catch (error) {
     console.log(error);
     return res.status(400).json({ message: "get current user error" });
@@ -21,24 +29,36 @@ export const UpdateProfile = async (req, res) => {
   try {
     const userId = req.userId;
     const { userName, description } = req.body;
-    let photoUrl;
+
+    const updateData = {};
+
+    if (userName) updateData.userName = userName;
+    if (description) updateData.description = description;
+
     if (req.file) {
-      photoUrl = await uploadOnCloudinary(req.file.path);
+      const uploaded = await uploadOnCloudinary(req.file.path);
+      updateData.photoUrl = uploaded;
     }
-    const user = await User.findByIdAndUpdate(userId, {
-      userName,
-      description,
-      photoUrl,
-    });
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true }, // 🔥 updated user return karega
+    ).select("-password");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    await user.save();
-    return res.status(200).json(user);
+
+    return res.status(200).json({
+      message: "Profile updated successfully",
+      user,
+      isProfileComplete:
+        !!user.userName && !!user.description && !!user.photoUrl,
+    });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: `Update Profile Error  ${error}` });
+    return res.status(500).json({ message: "Update Profile Error" });
   }
 };
 

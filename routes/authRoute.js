@@ -3,10 +3,11 @@ import {
   googleSignup,
   login,
   logOut,
-  resetPassword,
   sendOtp,
   signUp,
   verifyOtp,
+  forgotPassword,
+  resetPassword,
 } from "../controllers/authController.js";
 import { genToken } from "../configs/token.js";
 import jwt from "jsonwebtoken";
@@ -42,7 +43,8 @@ authRouter.post("/sign-in", login);
 authRouter.get("/logout", logOut);
 authRouter.post("/googlesignup", googleSignup);
 authRouter.post("/sendotp", sendOtp);
-authRouter.post("/verifyotp", verifyOtp);
+authRouter.post("/verify-otp", verifyOtp);
 authRouter.post("/reset-password", resetPassword);
+authRouter.post("/forgot-password", forgotPassword);
 
 export default authRouter;

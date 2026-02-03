@@ -13,8 +13,8 @@ userRouter.get("/currentuser", isAuth, getCurrentUser);
 userRouter.post(
   "/updateprofile",
   isAuth,
-  upload.single("photoUrl"),
-  UpdateProfile
+  upload.single("photo"),
+  UpdateProfile,
 );
 userRouter.get("/all", isAuth, getAllUsers);
 
