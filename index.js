@@ -32,7 +32,6 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
-app.options("*", cors());
 
 /* ================= STATIC FILES ================= */
 app.use("/uploads", express.static("public/uploads"));
