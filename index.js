@@ -24,12 +24,15 @@ app.use(cookieParser());
 app.use(
   cors({
     origin: [
-      "http://localhost:3000", // local frontend
-      process.env.FRONTEND_URL, // production frontend
+      "http://localhost:3000",
+      "https://lms-frontend-liard-xi.vercel.app",
     ],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
+app.options("*", cors());
 
 /* ================= STATIC FILES ================= */
 app.use("/uploads", express.static("public/uploads"));
