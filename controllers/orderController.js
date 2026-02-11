@@ -13,8 +13,16 @@ const razorpayInstance = new razorpay({
 
 export const createOrder = async (req, res) => {
   try {
-    const { courseId } = req.body;
+    const { courseId, couponId, finalAmount } = req.body;
     const userId = req.userId;
+
+    /* 1️⃣ COURSE CHECK */
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    /* 2️⃣ ALREADY PURCHASED */
     const existing = await Order.findOne({
       student: userId,
       course: courseId,
@@ -22,30 +30,28 @@ export const createOrder = async (req, res) => {
     });
 
     if (existing) {
-      return res.status(400).json({
-        message: "Course already purchased",
-      });
+      return res.status(400).json({ message: "Course already purchased" });
     }
 
-    const course = await Course.findById(courseId);
-    if (!course) {
-      return res.status(404).json({ message: "Course not found" });
-    }
+    /* 3️⃣ AMOUNT 결정 */
+    const payableAmount = finalAmount ?? course.price;
 
+    /* 4️⃣ RAZORPAY ORDER */
     const options = {
-      amount: course.price * 100,
+      amount: payableAmount * 100,
       currency: "INR",
       receipt: `ord_${Date.now()}`,
     };
 
     const razorpayOrder = await razorpayInstance.orders.create(options);
 
-    // ✅ SAVE ORDER IN DB
+    /* 5️⃣ SAVE ORDER */
     await Order.create({
       course: courseId,
       student: userId,
+      coupon: couponId || null,
       razorpay_order_id: razorpayOrder.id,
-      amount: course.price,
+      amount: payableAmount,
       currency: "INR",
       isPaid: false,
     });

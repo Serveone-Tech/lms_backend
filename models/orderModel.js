@@ -2,44 +2,82 @@ import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema(
   {
+    // 🔹 SINGLE COURSE (CURRENT FLOW – REQUIRED)
     course: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Course",
-      required: true
+      required: true,
     },
+
+    // 🔹 STUDENT
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true
+      required: true,
     },
+
+    // 🔹 RAZORPAY DATA
     razorpay_order_id: {
       type: String,
-      required: true
+      required: true,
     },
+
     razorpay_payment_id: {
-      type: String
+      type: String,
+      default: null,
     },
+
     razorpay_signature: {
-      type: String
+      type: String,
+      default: null,
     },
+
+    // 🔹 PAYMENT INFO
     amount: {
-      type: Number,
-      required: true
+      type: Number, // final amount (after discount if any)
+      required: true,
     },
+
     currency: {
       type: String,
-      default: "INR"
+      default: "INR",
     },
+
+    // 🔹 COUPON SUPPORT (OPTIONAL – SAFE)
+    coupon: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Coupon",
+      default: null,
+    },
+
+    discount: {
+      type: Number, // amount discounted
+      default: 0,
+    },
+
+    // 🔹 PAYMENT STATUS
     isPaid: {
       type: Boolean,
-      default: false
+      default: false,
     },
+
     paidAt: {
-      type: Date
-    }
+      type: Date,
+      default: null,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  },
+);
+
+// 🔹 INDEX (OPTIONAL BUT GOOD)
+// Prevent duplicate paid orders for same user & course
+orderSchema.index(
+  { student: 1, course: 1, isPaid: 1 },
+  { unique: true, partialFilterExpression: { isPaid: true } },
 );
 
 const Order = mongoose.model("Order", orderSchema);
+
 export default Order;
