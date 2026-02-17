@@ -53,7 +53,7 @@ app.use("/api/certificate", certificateRouter);
 
 /* ================= HEALTH CHECK ================= */
 app.get("/", (req, res) => {
-  res.send("Hello From Server");
+  res.send("Hello From Arvind");
 });
 
 /* ================= START SERVER ================= */
