@@ -16,7 +16,7 @@ import upload from "../middlewares/multer.js";
 const authRouter = express.Router();
 
 authRouter.post("/issue-token", (req, res) => {
-  const { userId } = req.body; // 🔥 frontend से आएगा
+  const { userId } = req.body;
 
   if (!userId) {
     return res.status(400).json({ message: "userId required" });

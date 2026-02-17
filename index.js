@@ -12,6 +12,8 @@ import reviewRouter from "./routes/reviewRoute.js";
 import adminUserRoute from "./routes/admin/adminUserRoute.js";
 import adminOrderRoute from "./routes/admin/adminOrderRoute.js";
 import progressRouter from "./routes/progressRoute.js";
+import couponRouter from "./routes/couponRoute.js";
+import certificateRouter from "./routes/certificateRoutes.js";
 
 dotenv.config();
 
@@ -46,6 +48,8 @@ app.use("/api/review", reviewRouter);
 app.use("/api/admin", adminUserRoute);
 app.use("/api/admin", adminOrderRoute);
 app.use("/api/progress", progressRouter);
+app.use("/api/coupons", couponRouter);
+app.use("/api/certificate", certificateRouter);
 
 /* ================= HEALTH CHECK ================= */
 app.get("/", (req, res) => {
