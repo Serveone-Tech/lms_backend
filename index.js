@@ -50,7 +50,7 @@ app.use("/api/certificate", certificateRouter);
 
 /* ================= HEALTH CHECK ================= */
 app.get("/", (req, res) => {
-  res.send("Hello From Zalgo");
+  res.send("Hello From Zalgo EduTech LMS Backend!");
 });
 
 /* ================= START SERVER ================= */
