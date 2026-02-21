@@ -28,8 +28,8 @@ authRouter.post("/issue-token", (req, res) => {
 
   res.cookie("token", backendToken, {
     httpOnly: true,
-    sameSite: "lax",
-    secure: false,
+    sameSite: "none",
+    secure: true,
     path: "/",
   });
 

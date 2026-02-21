@@ -1,0 +1,22 @@
+#!/bin/bash
+
+echo "🚀 Backend Deploy started"
+
+cd /var/www/lms.zalgoedutech.com/lms_backend || exit
+
+echo "🧹 Reset changes"
+git reset --hard
+
+echo "📥 Pull latest code"
+git pull origin main
+
+echo "📦 Install dependencies"
+npm install
+
+echo "🏗 Build project (if exists)"
+npm run build || true
+
+echo "🔁 Restart PM2"
+pm2 reload lms-backend || pm2 start npm --name "lms-backend" -- start
+
+echo "✅ Backend Deploy completed"
