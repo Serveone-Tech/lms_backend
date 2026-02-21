@@ -1,22 +1,20 @@
-#!/bin/bash
+name: 🚀 Deploy Backend API
 
-echo "🚀 Backend Deploy started"
+on:
+  push:
+    branches:
+      - main
 
-cd /var/www/lms.zalgoedutech.com/lms_backend || exit
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-echo "🧹 Reset changes"
-git reset --hard
-
-echo "📥 Pull latest code"
-git pull origin main
-
-echo "📦 Install dependencies"
-npm install
-
-echo "🏗 Build project (if exists)"
-npm run build || true
-
-echo "🔁 Restart PM2"
-pm2 reload lms-backend || pm2 start npm --name "lms-backend" -- start
-
-echo "✅ Backend Deploy completed"
+    steps:
+      - name: 🚀 Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            bash /var/www/lmsadmin.zalgoedutech.com/lms_backend/deploy.sh
