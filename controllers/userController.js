@@ -1,4 +1,4 @@
-import uploadOnCloudinary from "../configs/cloudinary.js";
+import uploadBufferToCloudinary from "../configs/cloudinary.js";
 import Order from "../models/orderModel.js";
 import User from "../models/userModel.js";
 
@@ -36,7 +36,7 @@ export const UpdateProfile = async (req, res) => {
     if (description) updateData.description = description;
 
     if (req.file) {
-      const uploaded = await uploadOnCloudinary(req.file.path);
+      const uploaded = await uploadBufferToCloudinary(req.file.path);
       updateData.photoUrl = uploaded;
     }
 

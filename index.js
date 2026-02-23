@@ -1,5 +1,6 @@
-import express from "express";
 import dotenv from "dotenv";
+dotenv.config();
+import express from "express";
 import connectDb from "./configs/db.js";
 import authRouter from "./routes/authRoute.js";
 import cookieParser from "cookie-parser";
@@ -15,12 +16,10 @@ import progressRouter from "./routes/progressRoute.js";
 import couponRouter from "./routes/couponRoute.js";
 import certificateRouter from "./routes/certificateRoutes.js";
 
-dotenv.config();
-
 const app = express();
 
 /* ================= MIDDLEWARES ================= */
-app.use(express.json());
+app.use(express.json({ limit: "100mb" }));
 app.use(cookieParser());
 
 app.use(
