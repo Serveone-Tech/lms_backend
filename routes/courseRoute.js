@@ -21,6 +21,7 @@ import {
   updateLastWatchedLecture,
   getMyEnrolledCourses,
 } from "../controllers/courseController.js";
+import uploadMemory from "../middlewares/multerMemory.js";
 
 const courseRouter = express.Router();
 
@@ -77,7 +78,7 @@ courseRouter.get("/lecture/:courseId", isAuth, getCourseLectures);
 courseRouter.put(
   "/lecture/:lectureId",
   isAuth,
-  upload.single("video"),
+  uploadMemory.single("video"),
   updateLecture,
 );
 

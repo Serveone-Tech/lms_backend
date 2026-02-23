@@ -1,10 +1,10 @@
-import uploadOnCloudinary from "../configs/cloudinary.js";
 import Course from "../models/courseModel.js";
 import Lecture from "../models/lectureModel.js";
 import User from "../models/userModel.js";
 import Order from "../models/orderModel.js";
 import Module from "../models/moduleModel.js";
 import CourseProgress from "../models/courseProgressModel.js";
+import uploadBufferToCloudinary from "../configs/cloudinary.js";
 
 export const getLecturePlayerData = async (req, res) => {
   try {
@@ -77,8 +77,6 @@ export const getLecturePlayerData = async (req, res) => {
 
 export const createCourse = async (req, res) => {
   try {
-    console.log("Creating course with data:", req.body);
-    console.log("Creating course userId", req.userId);
     const { title, category, shortDescription, price, thumbnail } = req.body;
 
     const course = await Course.create({
@@ -140,7 +138,7 @@ export const updateCourse = async (req, res) => {
     } = req.body;
     let thumbnail;
     if (req.file) {
-      thumbnail = await uploadOnCloudinary(req.file.path);
+      thumbnail = await uploadBufferToCloudinary(req.file.path);
     }
     let course = await Course.findById(courseId);
     if (!course) {
@@ -279,7 +277,9 @@ export const updateLecture = async (req, res) => {
 
     // video upload
     if (req.file) {
-      const videoUrl = await uploadOnCloudinary(req.file.path);
+      console.log("Received file for lecture update:", req.file);
+      const videoUrl = await uploadBufferToCloudinary(req.file.buffer, "video");
+      console.log("Uploaded video URL:", videoUrl);
       lecture.videoUrl = videoUrl;
       lecture.status = "published";
     }
@@ -290,7 +290,10 @@ export const updateLecture = async (req, res) => {
     await lecture.save();
     res.status(200).json(lecture);
   } catch (error) {
-    res.status(500).json({ message: "Failed to update lecture" });
+    console.error("Lecture update error:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to update lecture", error: error.message });
   }
 };
 
